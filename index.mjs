@@ -5,9 +5,8 @@ import config from './config';
 import AlarmSystem from './alarmSystem'
 
 (async () => {
-    const alarmSystem = new AlarmSystem();
-
     try {
+        const alarmSystem = new AlarmSystem();
         await alarmSystem.init();
 
         const app = express();

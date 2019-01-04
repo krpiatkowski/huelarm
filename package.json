@@ -4,15 +4,16 @@
   "description": "A Philips hue based Alarm system",
   "main": "index.js",
   "scripts": {
-    "start": "node --experimental-modules index.mjs",
+    "start": "node --experimental-modules index.mjs"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "express": "^4.16.4",
+    "huejay": "^1.8.5",
     "install": "^0.12.2",
     "moment": "^2.23.0",
-    "node-hue-api": "^2.4.4",
-    "npm": "^6.5.0"
+    "npm": "^6.5.0",
+    "waitup": "^0.2.0"
   }
 }
