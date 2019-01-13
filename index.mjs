@@ -1,24 +1,21 @@
 import express from 'express';
-import moment from 'moment';
 
 import config from './config';
-import AlarmSystem from './alarmSystem'
+import Alarm from './alarm/Alarm'
 
 (async () => {
     try {
-        const alarmSystem = new AlarmSystem();
-        await alarmSystem.init();
+        const alarm = new Alarm();
+        alarm.init();
 
         const app = express();
-        app.get('/activate', async (req, res) => {
-            console.log(`Activated alarm at ${moment(new Date())}`);
-            await alarmSystem.activate();
+        app.get('/monitor', async (req, res) => {
+            alarm.monitor();
             res.send("ok");
         });
 
-        app.get('/deactivate', async (req, res) => {
-            console.log(`Deactivated alarm at ${moment(new Date())}`);
-            await alarmSystem.deactivate();
+        app.get('/stop', async (req, res) => {
+            alarm.stop();
             res.send("ok");
         });
 

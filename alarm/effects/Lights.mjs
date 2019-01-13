@@ -1,35 +1,11 @@
-import moment from 'moment';
-import huejay from 'huejay';
-import waitup from 'waitup';
-
-import config from './config';
-
-const ALARM_PREFIX = "_ALARM_";
-const ALARM_COLOR_GROUP = ALARM_PREFIX + "_color";
-const ALARM_BLINK_GROUP = ALARM_PREFIX + "_blink";
-
-
-export default class AlarmSystem {
-    async init() {
+export default class Lights {
+    Lights(client) { 
+        this.client = client;
+        
         this.oldStates = {};
-        this.activated = null;
+    }
 
-        let ip = config.ip;    
-        if(ip == undefined) {
-            let bridges = await huejay.discover()
-            console.log(`Found ${bridges.length} bridges`)
-            if (bridges.count == 0) {
-                console.log("No bridge found exiting");
-            }
-            ip = bridges[0].ip;
-        }
-        console.log(`selected bridge on ${ip}`);
-
-        this.client = new huejay.Client({
-            host: ip,
-            username: config.hueToken
-        });
-
+    async init() {
         let lights = await this.client.lights.getAll();
         console.log('Lights');
         console.log('=============');
@@ -56,68 +32,52 @@ export default class AlarmSystem {
         console.log(`Created group alarm blink group with id ${this.normalGroup.id}`)
     }
 
-    async activate() {
-        this.activated = new Date();
-        //await this.monitor();
-        await this.triggerAlarm();
-    }
+    trigger() {
+        this.saveCurrentState()
+        .then(this.updateAlarm())
+        .done();
+    }  
 
-    async deactivate() {
-        this.activated = null;
-    }
-
-    async monitor() {
-        let sensors = await this.client.sensors.getAll();
-        let presence = sensors.filter((s) => s.model.type == 'CLIPPresence');
-        let triggered = presence.filter(s => moment.utc(s.state.lastupdated).isAfter(moment(this.activated)));
-        if (triggered.length > 0 || true) {
-            await this.triggerAlarm();
-        } else if (this.activated != null) {
-            setTimeout(async () => this.monitor(), 5000)
-        }
-    }
-
-    async triggerAlarm() {
-        this.activated = new Date();
-        console.log(`Alarm triggered at ${this.activated}`);
-        await this.saveCurrentState();
-        await this.updateAlarm();
-    }
 
     async saveCurrentState() {
-        let lights = await this.client.lights.getAll();
-
-        this.oldStates = {};
-        for (let light of lights) {
-            this.oldStates[light.id] = { on: light.on, brightness: light.brightness, hue: light.hue, saturation: light.saturation, colorTemp: light.colorTemp};
-            console.log(`Saving ${light.id} - ${light.name} with parameters ${JSON.stringify(this.oldStates[light.id])} to restore later`);
-        }
+        return this.client.lights.getAll(lights => {
+            this.oldStates = {};
+            for (let light of lights) {
+                this.oldStates[light.id] = { on: light.on, brightness: light.brightness, hue: light.hue, saturation: light.saturation, colorTemp: light.colorTemp};
+                console.log(`Saving ${light.id} - ${light.name} with parameters ${JSON.stringify(this.oldStates[light.id])} to restore later`);
+            }   
+        });
+    }
+    
+    updateAlarm() {
+        return this.updateColorGroup.then(this.updateNormalGroup).then(() => {
+            this.alarmState = this.alarmState == 0 ? 1 : 0;
+            this.updateAlarm = setTimeout(() => this.updateAlarm().done(), 5000);
+        });
     }
 
-    async updateAlarm() {
+    updateColorGroup() {
         this.colorGroup.on = true;
         this.colorGroup.hue = this.alarmState == 0 ? 65535 : 43690;
         this.colorGroup.saturation = 254;
         this.colorGroup.brightness = 254;
         this.colorGroup.transitionTime = 0.4;
-        await this.client.groups.save(this.colorGroup);
+        return this.client.groups.save(this.colorGroup);
+    }
 
+    updateNormalGroup() {
         this.normalGroup.on = this.alarmState == 0;
         this.normalGroup.saturation = 254;
         this.normalGroup.brightness = 254;
         this.normalGroup.colorTemp = 153;
         this.normalGroup.transitionTime = 0.0;
-        await this.client.groups.save(this.normalGroup);
-
-        if (this.activated != null) {
-            this.alarmState = this.alarmState == 0 ? 1 : 0;
-            setTimeout(() => this.updateAlarm(), 5000);
-        } else {
-            setTimeout(() => this.restoreLights(), 1000);
-        }
+        return this.client.groups.save(this.normalGroup);
     }
 
-    restoreLights() {
+    stop() {
+        this.updateAlarm.cancel();
+        this.updateAlarm = null;
+        
         if (Object.keys(this.oldStates).length > 0) {
             let k = Object.keys(this.oldStates)[0];
             this.client.lights.getById(k).then(light => {
