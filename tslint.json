@@ -1,0 +1,25 @@
+{
+    "extends": "tslint:recommended",
+    "rules": {
+        "new-parens": true,
+        "no-arg": true,
+        "no-console": false,
+        "semicolon": [
+            true,
+            "never"
+        ],
+        "interface-name": [
+            true,
+            "never-prefix"
+        ],
+        "no-empty-interface": false,
+        "max-line-length": false,
+        "trailing-comma": [
+            true,
+            {
+                "multiline": "never",
+                "singleline": "never"
+            }
+        ]
+    }
+}
